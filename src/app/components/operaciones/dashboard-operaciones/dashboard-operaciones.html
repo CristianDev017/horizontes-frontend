@@ -1,1 +1,358 @@
-<p>dashboard-operaciones works!</p>
+<div class="min-h-screen bg-gray-100 flex">
+
+  <!-- Sidebar -->
+  <div class="w-64 bg-purple-900 text-white flex flex-col fixed h-full">
+    <div class="p-6 border-b border-purple-700">
+      <h1 class="text-xl font-bold">Horizontes sin Límites</h1>
+      <p class="text-purple-300 text-sm mt-1">Operaciones</p>
+    </div>
+    <nav class="flex-1 p-4 space-y-2">
+      <button (click)="cambiarSeccion('destinos')"
+        [class]="seccionActiva==='destinos' ? 'w-full text-left px-4 py-3 rounded-lg bg-purple-700 font-medium' : 'w-full text-left px-4 py-3 rounded-lg text-purple-200 hover:bg-purple-800'">
+        Destinos
+      </button>
+      <button (click)="cambiarSeccion('proveedores')"
+        [class]="seccionActiva==='proveedores' ? 'w-full text-left px-4 py-3 rounded-lg bg-purple-700 font-medium' : 'w-full text-left px-4 py-3 rounded-lg text-purple-200 hover:bg-purple-800'">
+        Proveedores
+      </button>
+      <button (click)="cambiarSeccion('paquetes')"
+        [class]="seccionActiva==='paquetes' ? 'w-full text-left px-4 py-3 rounded-lg bg-purple-700 font-medium' : 'w-full text-left px-4 py-3 rounded-lg text-purple-200 hover:bg-purple-800'">
+        Paquetes
+      </button>
+    </nav>
+    <div class="p-4 border-t border-purple-700">
+      <button (click)="logout()"
+        class="w-full text-left px-4 py-3 rounded-lg text-red-300 hover:bg-purple-800">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenido -->
+  <div class="ml-64 flex-1 p-8">
+
+    <!-- DESTINOS -->
+    <div *ngIf="seccionActiva === 'destinos'">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Destinos</h2>
+        <button (click)="mostrarFormDestino = !mostrarFormDestino; editandoDestino = false; nuevoDestino = {id:0,nombre:'',pais:'',descripcion:'',clima:'',imagenUrl:''}"
+          class="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-800">
+          + Nuevo Destino
+        </button>
+      </div>
+
+      <div *ngIf="mensajeDestino" class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{{ mensajeDestino }}</div>
+      <div *ngIf="errorDestino" class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">{{ errorDestino }}</div>
+
+      <!-- Formulario -->
+      <div *ngIf="mostrarFormDestino" class="bg-white rounded-xl shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold mb-4">{{ editandoDestino ? 'Editar' : 'Nuevo' }} Destino</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+            <input type="text" [(ngModel)]="nuevoDestino.nombre" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">País</label>
+            <input type="text" [(ngModel)]="nuevoDestino.pais" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Clima</label>
+            <input type="text" [(ngModel)]="nuevoDestino.clima" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">URL de imagen</label>
+            <input type="text" [(ngModel)]="nuevoDestino.imagenUrl" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <textarea [(ngModel)]="nuevoDestino.descripcion" rows="3"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-3">
+          <button (click)="guardarDestino()"
+            class="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800">
+            {{ editandoDestino ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button (click)="mostrarFormDestino = false"
+            class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300">
+            Cancelar
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Nombre</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">País</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Clima</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of destinos" class="border-t hover:bg-gray-50">
+              <td class="px-6 py-4 font-medium">{{ d.nombre }}</td>
+              <td class="px-6 py-4 text-sm">{{ d.pais }}</td>
+              <td class="px-6 py-4 text-sm">{{ d.clima }}</td>
+              <td class="px-6 py-4 flex gap-2">
+                <button (click)="editarDestino(d)"
+                  class="text-blue-600 hover:text-blue-800 text-sm font-medium">Editar</button>
+                <button (click)="eliminarDestino(d.id)"
+                  class="text-red-600 hover:text-red-800 text-sm font-medium">Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROVEEDORES -->
+    <div *ngIf="seccionActiva === 'proveedores'">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Proveedores</h2>
+        <button (click)="mostrarFormProveedor = !mostrarFormProveedor; editandoProveedor = false; nuevoProveedor = {id:0,nombre:'',tipo:1,pais:'',contacto:''}"
+          class="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-800">
+          + Nuevo Proveedor
+        </button>
+      </div>
+
+      <div *ngIf="mensajeProveedor" class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{{ mensajeProveedor }}</div>
+      <div *ngIf="errorProveedor" class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">{{ errorProveedor }}</div>
+
+      <!-- Formulario -->
+      <div *ngIf="mostrarFormProveedor" class="bg-white rounded-xl shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold mb-4">{{ editandoProveedor ? 'Editar' : 'Nuevo' }} Proveedor</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+            <input type="text" [(ngModel)]="nuevoProveedor.nombre" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+            <select [(ngModel)]="nuevoProveedor.tipo"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option [value]="1">Aerolínea</option>
+              <option [value]="2">Hotel</option>
+              <option [value]="3">Tour</option>
+              <option [value]="4">Traslado</option>
+              <option [value]="5">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">País</label>
+            <input type="text" [(ngModel)]="nuevoProveedor.pais" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
+            <input type="text" [(ngModel)]="nuevoProveedor.contacto" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-3">
+          <button (click)="guardarProveedor()"
+            class="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800">
+            {{ editandoProveedor ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button (click)="mostrarFormProveedor = false"
+            class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300">
+            Cancelar
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Nombre</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Tipo</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">País</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Contacto</th>
+              <th class="text-left px-6 py-3 text-sm font-semibold text-gray-600">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of proveedores" class="border-t hover:bg-gray-50">
+              <td class="px-6 py-4 font-medium">{{ p.nombre }}</td>
+              <td class="px-6 py-4 text-sm">{{ getTipoProveedor(p.tipo) }}</td>
+              <td class="px-6 py-4 text-sm">{{ p.pais }}</td>
+              <td class="px-6 py-4 text-sm">{{ p.contacto }}</td>
+              <td class="px-6 py-4 flex gap-2">
+                <button (click)="editarProveedor(p)"
+                  class="text-blue-600 hover:text-blue-800 text-sm font-medium">Editar</button>
+                <button (click)="eliminarProveedor(p.id)"
+                  class="text-red-600 hover:text-red-800 text-sm font-medium">Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAQUETES -->
+    <div *ngIf="seccionActiva === 'paquetes'">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Paquetes Turísticos</h2>
+        <button (click)="mostrarFormPaquete = !mostrarFormPaquete; editandoPaquete = false; paqueteSeleccionado = null"
+          class="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-800">
+          + Nuevo Paquete
+        </button>
+      </div>
+
+      <div *ngIf="mensajePaquete" class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{{ mensajePaquete }}</div>
+      <div *ngIf="errorPaquete" class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">{{ errorPaquete }}</div>
+
+      <!-- Formulario paquete -->
+      <div *ngIf="mostrarFormPaquete" class="bg-white rounded-xl shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold mb-4">{{ editandoPaquete ? 'Editar' : 'Nuevo' }} Paquete</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+            <input type="text" [(ngModel)]="nuevoPaquete.nombre" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+            <select [(ngModel)]="nuevoPaquete.destinoId"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option [value]="0">Selecciona un destino</option>
+              <option *ngFor="let d of destinos" [value]="d.id">{{ d.nombre }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Duración (días)</label>
+            <input type="number" [(ngModel)]="nuevoPaquete.duracionDias" min="1"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Precio de venta (Q)</label>
+            <input type="number" [(ngModel)]="nuevoPaquete.precioVenta" min="0"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Capacidad máxima</label>
+            <input type="number" [(ngModel)]="nuevoPaquete.capacidad" min="1"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <textarea [(ngModel)]="nuevoPaquete.descripcion" rows="3"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-3">
+          <button (click)="guardarPaquete()"
+            class="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800">
+            {{ editandoPaquete ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button (click)="mostrarFormPaquete = false"
+            class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300">
+            Cancelar
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista + Detalle -->
+      <div class="grid grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600">Nombre</th>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600">Precio</th>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600">Estado</th>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of paquetes" class="border-t hover:bg-gray-50 cursor-pointer"
+                (click)="verDetallePaquete(p)">
+                <td class="px-4 py-3 text-sm font-medium">{{ p.nombre }}</td>
+                <td class="px-4 py-3 text-sm">Q.{{ p.precioVenta }}</td>
+                <td class="px-4 py-3">
+                  <span [class]="p.activo ? 'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs' : 'bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs'">
+                    {{ p.activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 flex gap-2">
+                  <button (click)="editarPaquete(p); $event.stopPropagation()"
+                    class="text-blue-600 text-xs hover:text-blue-800">Editar</button>
+                  <button *ngIf="p.activo" (click)="desactivarPaquete(p.id); $event.stopPropagation()"
+                    class="text-red-600 text-xs hover:text-red-800">Desactivar</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Detalle paquete -->
+        <div *ngIf="paqueteSeleccionado" class="bg-white rounded-xl shadow p-6">
+          <h3 class="text-lg font-semibold mb-3">{{ paqueteSeleccionado.nombre }}</h3>
+          <div class="text-sm space-y-1 mb-4">
+            <p><span class="font-medium">Destino:</span> {{ paqueteSeleccionado.destinoNombre }}</p>
+            <p><span class="font-medium">Duración:</span> {{ paqueteSeleccionado.duracionDias }} días</p>
+            <p><span class="font-medium">Precio venta:</span> Q.{{ paqueteSeleccionado.precioVenta }}</p>
+            <p><span class="font-medium">Costo total servicios:</span> Q.{{ getCostoTotal(paqueteSeleccionado) }}</p>
+            <p><span class="font-medium">Ganancia bruta:</span> Q.{{ paqueteSeleccionado.precioVenta - getCostoTotal(paqueteSeleccionado) }}</p>
+          </div>
+
+          <div *ngIf="mensajeServicio" class="bg-green-100 text-green-700 px-3 py-2 rounded mb-3 text-sm">{{ mensajeServicio }}</div>
+          <div *ngIf="errorServicio" class="bg-red-100 text-red-700 px-3 py-2 rounded mb-3 text-sm">{{ errorServicio }}</div>
+
+          <h4 class="font-medium text-gray-700 mb-2">Servicios incluidos</h4>
+          <div *ngIf="!paqueteSeleccionado.servicios || paqueteSeleccionado.servicios.length === 0"
+            class="text-sm text-gray-500 mb-3">Sin servicios agregados.</div>
+          <div *ngFor="let s of paqueteSeleccionado.servicios"
+            class="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded mb-1">
+            <span>{{ s.descripcion }} ({{ s.proveedorNombre }})</span>
+            <span class="font-medium">Q.{{ s.costo }}</span>
+          </div>
+
+          <button (click)="mostrarFormServicio = !mostrarFormServicio"
+            class="mt-3 bg-purple-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-800">
+            + Agregar Servicio
+          </button>
+
+          <div *ngIf="mostrarFormServicio" class="mt-4 border-t pt-4">
+            <div class="grid grid-cols-1 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Proveedor</label>
+                <select [(ngModel)]="nuevoServicio.proveedorId"
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option [value]="0">Selecciona proveedor</option>
+                  <option *ngFor="let p of proveedores" [value]="p.id">{{ p.nombre }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Descripción</label>
+                <input type="text" [(ngModel)]="nuevoServicio.descripcion" autocomplete="off"
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Costo (Q)</label>
+                <input type="number" [(ngModel)]="nuevoServicio.costo" min="0"
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+              </div>
+            </div>
+            <button (click)="agregarServicio()"
+              class="mt-3 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+              Guardar Servicio
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

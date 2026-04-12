@@ -1,5 +1,5 @@
 export interface Pago {
-  id: number;
+  id?: number;
   reservacionId: number;
   monto: number;
   metodo: number;

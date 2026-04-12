@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -19,7 +19,11 @@ export class LoginComponent {
   error: string = '';
   cargando: boolean = false;
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   login(): void {
     if (!this.nombre || !this.password) {
@@ -36,9 +40,12 @@ export class LoginComponent {
         else if (usuario.tipo === 1) this.router.navigate(['/atencion']);
         else if (usuario.tipo === 2) this.router.navigate(['/operaciones']);
       },
-      error: () => {
-        this.error = 'Usuario o contraseña incorrectos';
+      error: (err) => {
+        this.error = err.status === 401
+          ? 'Usuario o contraseña incorrectos'
+          : 'Error al conectar con el servidor';
         this.cargando = false;
+        this.cdr.detectChanges();
       }
     });
   }

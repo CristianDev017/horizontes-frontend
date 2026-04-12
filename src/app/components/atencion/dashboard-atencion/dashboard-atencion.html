@@ -1,1 +1,303 @@
-<p>dashboard-atencion works!</p>
+<div class="min-h-screen bg-gray-100 flex">
+
+  <!-- Sidebar -->
+  <div class="w-64 bg-green-900 text-white flex flex-col fixed h-full">
+    <div class="p-6 border-b border-green-700">
+      <h1 class="text-xl font-bold">Horizontes sin Límites</h1>
+      <p class="text-green-300 text-sm mt-1">Atención al Cliente</p>
+    </div>
+    <nav class="flex-1 p-4 space-y-2">
+      <button (click)="cambiarSeccion('reservaciones-dia')"
+        [class]="seccionActiva==='reservaciones-dia' ? 'w-full text-left px-4 py-3 rounded-lg bg-green-700 font-medium' : 'w-full text-left px-4 py-3 rounded-lg text-green-200 hover:bg-green-800'">
+        Reservaciones del Día
+      </button>
+      <button (click)="cambiarSeccion('nueva-reservacion')"
+        [class]="seccionActiva==='nueva-reservacion' ? 'w-full text-left px-4 py-3 rounded-lg bg-green-700 font-medium' : 'w-full text-left px-4 py-3 rounded-lg text-green-200 hover:bg-green-800'">
+        Nueva Reservacion
+      </button>
+      <button (click)="cambiarSeccion('clientes')"
+        [class]="seccionActiva==='clientes' ? 'w-full text-left px-4 py-3 rounded-lg bg-green-700 font-medium' : 'w-full text-left px-4 py-3 rounded-lg text-green-200 hover:bg-green-800'">
+        Clientes
+      </button>
+    </nav>
+    <div class="p-4 border-t border-green-700">
+      <button (click)="logout()"
+        class="w-full text-left px-4 py-3 rounded-lg text-red-300 hover:bg-green-800">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenido -->
+  <div class="ml-64 flex-1 p-8">
+
+    <!-- RESERVACIONES DEL DIA -->
+    <div *ngIf="seccionActiva === 'reservaciones-dia'">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">Reservaciones del Día</h2>
+
+      <div class="grid grid-cols-2 gap-6">
+        <!-- Lista -->
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+          <div *ngIf="reservacionesDelDia.length === 0" class="p-6 text-gray-500">
+            No hay reservaciones para hoy.
+          </div>
+          <table *ngIf="reservacionesDelDia.length > 0" class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600">Numero</th>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600">Paquete</th>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600">Estado</th>
+                <th class="text-left px-4 py-3 text-sm font-semibold text-gray-600"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of reservacionesDelDia" class="border-t hover:bg-gray-50 cursor-pointer"
+                (click)="seleccionarReservacion(r)">
+                <td class="px-4 py-3 text-sm font-medium">{{ r.numero }}</td>
+                <td class="px-4 py-3 text-sm">{{ r.paqueteNombre }}</td>
+                <td class="px-4 py-3">
+                  <span [class]="r.estado === 'CONFIRMADA' ? 'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs' :
+                                 r.estado === 'PENDIENTE' ? 'bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs' :
+                                 r.estado === 'CANCELADA' ? 'bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs' :
+                                 'bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs'">
+                    {{ r.estado }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-sm text-blue-600">Ver</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Detalle reservacion -->
+        <div *ngIf="reservacionSeleccionada" class="bg-white rounded-xl shadow p-6">
+          <h3 class="text-lg font-semibold mb-4">{{ reservacionSeleccionada.numero }}</h3>
+          <div class="space-y-2 text-sm mb-4">
+            <p><span class="font-medium">Paquete:</span> {{ reservacionSeleccionada.paqueteNombre }}</p>
+            <p><span class="font-medium">Agente:</span> {{ reservacionSeleccionada.agenteNombre }}</p>
+            <p><span class="font-medium">Fecha viaje:</span> {{ reservacionSeleccionada.fechaViaje }}</p>
+            <p><span class="font-medium">Costo total:</span> Q.{{ reservacionSeleccionada.costoTotal }}</p>
+            <p><span class="font-medium">Estado:</span> {{ reservacionSeleccionada.estado }}</p>
+          </div>
+
+          <!-- Mensajes -->
+          <div *ngIf="mensajePago" class="bg-green-100 text-green-700 px-3 py-2 rounded mb-3 text-sm">{{ mensajePago }}</div>
+          <div *ngIf="errorPago" class="bg-red-100 text-red-700 px-3 py-2 rounded mb-3 text-sm">{{ errorPago }}</div>
+          <div *ngIf="mensajeCancelacion" class="bg-green-100 text-green-700 px-3 py-2 rounded mb-3 text-sm">{{ mensajeCancelacion }}</div>
+          <div *ngIf="errorCancelacion" class="bg-red-100 text-red-700 px-3 py-2 rounded mb-3 text-sm">{{ errorCancelacion }}</div>
+
+          <!-- Pagos -->
+          <div class="mb-4">
+            <h4 class="font-medium text-gray-700 mb-2">Pagos registrados</h4>
+            <div *ngIf="pagosReservacion.length === 0" class="text-sm text-gray-500">Sin pagos.</div>
+            <div *ngFor="let p of pagosReservacion"
+              class="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded mb-1">
+              <span>{{ getMetodoNombre(p.metodo) }}</span>
+              <span class="font-medium">Q.{{ p.monto }}</span>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="flex gap-2 flex-wrap"
+            *ngIf="reservacionSeleccionada.estado === 'PENDIENTE' || reservacionSeleccionada.estado === 'CONFIRMADA'">
+            <button (click)="mostrarFormPago = !mostrarFormPago"
+              class="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800">
+              Registrar Pago
+            </button>
+            <button (click)="procesarCancelacion()"
+              class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700">
+              Cancelar Reservacion
+            </button>
+          </div>
+
+          <!-- Form pago -->
+          <div *ngIf="mostrarFormPago" class="mt-4 border-t pt-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Monto</label>
+                <input type="number" [(ngModel)]="nuevoPago.monto"
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Método</label>
+                <select [(ngModel)]="nuevoPago.metodo"
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option [value]="1">Efectivo</option>
+                  <option [value]="2">Tarjeta</option>
+                  <option [value]="3">Transferencia</option>
+                </select>
+              </div>
+            </div>
+            <button (click)="registrarPago()"
+              class="mt-3 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+              Confirmar Pago
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NUEVA RESERVACION -->
+    <div *ngIf="seccionActiva === 'nueva-reservacion'">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">Nueva Reservacion</h2>
+
+      <div *ngIf="mensajeReservacion" class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{{ mensajeReservacion }}</div>
+      <div *ngIf="errorReservacion" class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">{{ errorReservacion }}</div>
+
+      <div class="bg-white rounded-xl shadow p-6 max-w-2xl">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Paquete</label>
+            <select [(ngModel)]="nuevaReservacion.paqueteId"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500">
+              <option [value]="0">Selecciona un paquete</option>
+              <option *ngFor="let p of paquetes" [value]="p.id">
+                {{ p.nombre }} - Q.{{ p.precioVenta }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de viaje</label>
+            <input type="date" [(ngModel)]="nuevaReservacion.fechaViaje"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+        </div>
+
+        <!-- Pasajeros -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Agregar pasajero por DPI</label>
+          <div class="flex gap-2">
+            <input type="text" [(ngModel)]="dpiBuscandoPasajero" placeholder="DPI del pasajero"
+              class="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+            <button (click)="agregarPasajero()"
+              class="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800">
+              Agregar
+            </button>
+          </div>
+          <div *ngIf="nuevaReservacion.pasajeros.length > 0" class="mt-2 space-y-1">
+            <div *ngFor="let dpi of nuevaReservacion.pasajeros"
+              class="flex justify-between items-center bg-gray-50 px-3 py-2 rounded text-sm">
+              <span>{{ dpi }}</span>
+              <button (click)="quitarPasajero(dpi)" class="text-red-500 hover:text-red-700">Quitar</button>
+            </div>
+          </div>
+        </div>
+
+        <button (click)="crearReservacion()"
+          class="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800 font-medium">
+          Crear Reservacion
+        </button>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div *ngIf="seccionActiva === 'clientes'">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Clientes</h2>
+        <button (click)="mostrarFormCliente = true; clienteBuscado = null; nuevoCliente = {dpi:'',nombre:'',fechaNac:'',telefono:'',email:'',nacionalidad:''}"
+          class="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800">
+          + Nuevo Cliente
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl shadow p-6 max-w-2xl mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Buscar por DPI</label>
+        <div class="flex gap-2">
+          <input type="text" [(ngModel)]="dpiBusqueda" placeholder="Ingresa el DPI"
+            autocomplete="off"
+            class="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          <button (click)="buscarCliente()"
+            class="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800">
+            Buscar
+          </button>
+        </div>
+        <div *ngIf="mensajeCliente" class="mt-3 bg-green-100 text-green-700 px-3 py-2 rounded text-sm">{{ mensajeCliente }}</div>
+        <div *ngIf="errorCliente && !mostrarFormCliente" class="mt-3 bg-red-100 text-red-700 px-3 py-2 rounded text-sm">{{ errorCliente }}</div>
+      </div>
+
+      <!-- Datos cliente encontrado -->
+      <div *ngIf="clienteBuscado" class="bg-white rounded-xl shadow p-6 max-w-2xl mb-6">
+        <h3 class="text-lg font-semibold mb-3">Datos del Cliente</h3>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <p><span class="font-medium">DPI:</span> {{ clienteBuscado.dpi }}</p>
+          <p><span class="font-medium">Nombre:</span> {{ clienteBuscado.nombre }}</p>
+          <p><span class="font-medium">Teléfono:</span> {{ clienteBuscado.telefono }}</p>
+          <p><span class="font-medium">Email:</span> {{ clienteBuscado.email }}</p>
+          <p><span class="font-medium">Nacionalidad:</span> {{ clienteBuscado.nacionalidad }}</p>
+        </div>
+
+        <!-- Historial -->
+        <div *ngIf="historialCliente.length > 0" class="mt-4">
+          <h4 class="font-medium text-gray-700 mb-2">Historial de Reservaciones</h4>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-3 py-2">Numero</th>
+                <th class="text-left px-3 py-2">Paquete</th>
+                <th class="text-left px-3 py-2">Estado</th>
+                <th class="text-left px-3 py-2">Costo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of historialCliente" class="border-t">
+                <td class="px-3 py-2">{{ r.numero }}</td>
+                <td class="px-3 py-2">{{ r.paqueteNombre }}</td>
+                <td class="px-3 py-2">{{ r.estado }}</td>
+                <td class="px-3 py-2">Q.{{ r.costoTotal }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Formulario nuevo cliente -->
+      <div *ngIf="mostrarFormCliente" class="bg-white rounded-xl shadow p-6 max-w-2xl">
+        <h3 class="text-lg font-semibold mb-4">Registrar Nuevo Cliente</h3>
+        <div *ngIf="errorCliente" class="bg-red-100 text-red-700 px-3 py-2 rounded mb-3 text-sm">{{ errorCliente }}</div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">DPI</label>
+            <input type="text" [(ngModel)]="nuevoCliente.dpi" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+            <input type="text" [(ngModel)]="nuevoCliente.nombre" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
+            <input type="date" [(ngModel)]="nuevoCliente.fechaNac"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+            <input type="text" [(ngModel)]="nuevoCliente.telefono" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" [(ngModel)]="nuevoCliente.email" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nacionalidad</label>
+            <input type="text" [(ngModel)]="nuevoCliente.nacionalidad" autocomplete="off"
+              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-3">
+          <button (click)="registrarCliente()"
+            class="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800">
+            Guardar
+          </button>
+          <button (click)="mostrarFormCliente = false"
+            class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

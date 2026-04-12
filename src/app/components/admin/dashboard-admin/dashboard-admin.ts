@@ -106,6 +106,47 @@ export class DashboardAdminComponent implements OnInit {
     })
     .catch(() => this.cargando = false);
   }
+      // Reportes
+    fechaInicio: string = '';
+    fechaFin: string = '';
+    reporteSeleccionado: string = 'ventas';
+    datosReporte: any = null;
+
+    generarReporte(): void {
+      const params = this.fechaInicio && this.fechaFin
+        ? `?inicio=${this.fechaInicio}&fin=${this.fechaFin}`
+        : '';
+      fetch(`/api/reportes/${this.reporteSeleccionado}${params}`, {
+        credentials: 'include'
+      })
+      .then(r => r.json())
+      .then(data => this.datosReporte = data);
+    }
+
+    esArray(data: any): boolean {
+      return Array.isArray(data);
+    }
+
+    getColumnas(obj: any): string[] {
+      return Object.keys(obj);
+    }
+
+    exportarCSV(): void {
+      if (!this.datosReporte) return;
+      const datos = this.esArray(this.datosReporte) ? this.datosReporte : [this.datosReporte];
+      if (datos.length === 0) return;
+      const cols = this.getColumnas(datos[0]);
+      const csv = [
+        cols.join(','),
+        ...datos.map((fila: any) => cols.map((c: string) => fila[c]).join(','))
+      ].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte-${this.reporteSeleccionado}.csv`;
+      a.click();
+    }
 
   logout(): void {
     this.authService.logout().subscribe();

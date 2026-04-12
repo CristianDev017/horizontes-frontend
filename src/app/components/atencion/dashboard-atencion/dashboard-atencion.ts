@@ -1,9 +1,273 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../../services/auth';
+import { ClienteService } from '../../../services/cliente';
+import { PaqueteService } from '../../../services/paquete';
+import { ReservacionService } from '../../../services/reservacion';
+import { PagoService } from '../../../services/pago';
+import { Cliente } from '../../../models/cliente.model';
+import { Paquete } from '../../../models/paquete.model';
+import { Reservacion } from '../../../models/reservacion.model';
+import { Pago } from '../../../models/pago.model';
 
 @Component({
   selector: 'app-dashboard-atencion',
-  imports: [],
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard-atencion.html',
-  styleUrl: './dashboard-atencion.css',
+  styleUrl: './dashboard-atencion.css'
 })
-export class DashboardAtencionComponent {}
+export class DashboardAtencionComponent implements OnInit {
+
+  seccionActiva: string = 'reservaciones-dia';
+  usuario: any;
+
+  // Clientes
+  clienteBuscado: Cliente | null = null;
+  dpiBusqueda: string = '';
+  mostrarFormCliente: boolean = false;
+  nuevoCliente: Cliente = { dpi: '', nombre: '', fechaNac: '', telefono: '', email: '', nacionalidad: '' };
+  mensajeCliente: string = '';
+  errorCliente: string = '';
+
+  // Reservaciones
+  reservacionesDelDia: Reservacion[] = [];
+  reservacionSeleccionada: Reservacion | null = null;
+  historialCliente: Reservacion[] = [];
+  paquetes: Paquete[] = [];
+  nuevaReservacion: any = { paqueteId: 0, fechaViaje: '', pasajeros: [] };
+  dpiBuscandoPasajero: string = '';
+  mensajeReservacion: string = '';
+  errorReservacion: string = '';
+
+  // Pagos
+  pagosReservacion: Pago[] = [];
+  nuevoPago: any = { reservacionId: 0, monto: 0, metodo: 1, fecha: '' };
+  mensajePago: string = '';
+  errorPago: string = '';
+  mostrarFormPago: boolean = false;
+
+  // Cancelacion
+  mensajeCancelacion: string = '';
+  errorCancelacion: string = '';
+
+  constructor(
+    private authService: AuthService,
+    private clienteService: ClienteService,
+    private paqueteService: PaqueteService,
+    private reservacionService: ReservacionService,
+    private pagoService: PagoService,
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient
+  ) {}
+
+  ngOnInit(): void {
+    this.usuario = this.authService.getUsuario();
+    this.cargarReservacionesDelDia();
+    this.cargarPaquetes();
+  }
+
+  cambiarSeccion(seccion: string): void {
+    this.seccionActiva = seccion;
+    this.mensajeCliente = '';
+    this.errorCliente = '';
+    this.mensajeReservacion = '';
+    this.errorReservacion = '';
+  }
+
+  // ---- CLIENTES ----
+buscarCliente(): void {
+  this.errorCliente = '';
+  this.mensajeCliente = '';
+  this.clienteBuscado = null;
+  this.historialCliente = [];
+  if (!this.dpiBusqueda) { this.errorCliente = 'Ingresa un DPI'; return; }
+  this.clienteService.buscarPorDpi(this.dpiBusqueda).subscribe({
+    next: (c) => {
+      this.clienteBuscado = c;
+      this.cargarHistorial(c.dpi);
+      this.cdr.detectChanges();  
+    },
+    error: () => {
+      this.clienteBuscado = null;
+      this.mostrarFormCliente = true;
+      this.nuevoCliente = { dpi: this.dpiBusqueda, nombre: '', fechaNac: '', telefono: '', email: '', nacionalidad: '' };
+      this.cdr.detectChanges(); 
+    }
+  });
+}
+
+  cargarHistorial(dpi: string): void {
+    this.reservacionService.historialCliente(dpi).subscribe({
+      next: (data) => this.historialCliente = data,
+      error: () => {}
+    });
+  }
+
+  registrarCliente(): void {
+    this.errorCliente = '';
+    if (!this.nuevoCliente.dpi || !this.nuevoCliente.nombre || !this.nuevoCliente.fechaNac) {
+      this.errorCliente = 'Completa los campos requeridos'; return;
+    }
+    this.clienteService.buscarPorDpi(this.nuevoCliente.dpi).subscribe({
+      next: () => {
+        this.errorCliente = 'Ya existe un cliente con ese DPI';
+      },
+      error: () => {
+        this.clienteService.crear(this.nuevoCliente).subscribe({
+          next: (c) => {
+            this.clienteBuscado = c;
+            this.mostrarFormCliente = false;
+            this.mensajeCliente = 'Cliente registrado correctamente';
+            this.cdr.detectChanges();
+          },
+          error: (e) => this.errorCliente = e.error?.error || 'Error al registrar cliente'
+        });
+      }
+    });
+  }
+
+  // ---- RESERVACIONES ----
+  cargarReservacionesDelDia(): void {
+    this.reservacionService.listarDelDia().subscribe({
+      next: (data) => this.reservacionesDelDia = data,
+      error: () => {}
+    });
+  }
+
+  cargarPaquetes(): void {
+    this.paqueteService.listar().subscribe({
+      next: (data) => this.paquetes = data.filter(p => p.activo),
+      error: () => {}
+    });
+  }
+
+  seleccionarReservacion(r: Reservacion): void {
+    this.reservacionSeleccionada = r;
+    this.cargarPagos(r.id);
+    this.mensajePago = '';
+    this.errorPago = '';
+    this.mensajeCancelacion = '';
+    this.errorCancelacion = '';
+  }
+
+  agregarPasajero(): void {
+    if (!this.dpiBuscandoPasajero) return;
+    if (this.nuevaReservacion.pasajeros.includes(this.dpiBuscandoPasajero)) {
+      this.errorReservacion = 'Este pasajero ya está agregado'; return;
+    }
+    this.clienteService.buscarPorDpi(this.dpiBuscandoPasajero).subscribe({
+      next: () => {
+        this.nuevaReservacion.pasajeros.push(this.dpiBuscandoPasajero);
+        this.dpiBuscandoPasajero = '';
+        this.errorReservacion = '';
+      },
+      error: () => this.errorReservacion = 'Cliente no encontrado con ese DPI'
+    });
+  }
+
+  quitarPasajero(dpi: string): void {
+    this.nuevaReservacion.pasajeros = this.nuevaReservacion.pasajeros.filter((d: string) => d !== dpi);
+  }
+
+  crearReservacion(): void {
+    this.errorReservacion = '';
+    if (!this.nuevaReservacion.paqueteId || !this.nuevaReservacion.fechaViaje) {
+      this.errorReservacion = 'Selecciona paquete y fecha de viaje'; return;
+    }
+    if (this.nuevaReservacion.pasajeros.length === 0) {
+      this.errorReservacion = 'Agrega al menos un pasajero'; return;
+    }
+    const paquete = this.paquetes.find(p => p.id == this.nuevaReservacion.paqueteId);
+    const data = {
+      paqueteId: Number(this.nuevaReservacion.paqueteId),
+      agenteId: this.usuario.id,
+      fechaViaje: this.formatearFecha(this.nuevaReservacion.fechaViaje),
+      costoTotal: paquete ? paquete.precioVenta * this.nuevaReservacion.pasajeros.length : 0,
+      pasajeros: this.nuevaReservacion.pasajeros
+    };
+    this.reservacionService.crear(data).subscribe({
+      next: (r) => {
+        this.mensajeReservacion = `Reservacion ${r.numero} creada correctamente`;
+        this.nuevaReservacion = { paqueteId: 0, fechaViaje: '', pasajeros: [] };
+        this.cargarReservacionesDelDia();
+        this.cdr.detectChanges();
+      },
+      error: (e) => this.errorReservacion = e.error?.error || 'Error al crear reservacion'
+    });
+  }
+
+  // ---- PAGOS ----
+  cargarPagos(reservacionId: number): void {
+    this.pagoService.listarPorReservacion(reservacionId).subscribe({
+      next: (data) => this.pagosReservacion = data,
+      error: () => {}
+    });
+  }
+
+  registrarPago(): void {
+    this.errorPago = '';
+    if (!this.nuevoPago.monto || this.nuevoPago.monto <= 0) {
+      this.errorPago = 'El monto debe ser mayor a 0'; return;
+    }
+    const pago = {
+      reservacionId: this.reservacionSeleccionada!.id,
+      monto: this.nuevoPago.monto,
+      metodo: this.nuevoPago.metodo,
+      fecha: this.formatearFecha(new Date().toISOString().split('T')[0])
+    };
+    this.pagoService.registrar(pago).subscribe({
+      next: (resp) => {
+        this.mensajePago = resp.mensaje;
+        this.mostrarFormPago = false;
+        this.nuevoPago = { monto: 0, metodo: 1 };
+        this.cargarPagos(this.reservacionSeleccionada!.id);
+        this.cargarReservacionesDelDia();
+        this.cdr.detectChanges();
+      },
+      error: (e) => this.errorPago = e.error?.error || 'Error al registrar pago'
+    });
+  }
+
+  // ---- CANCELACION ----
+  procesarCancelacion(): void {
+    this.errorCancelacion = '';
+    if (!confirm('¿Seguro que deseas cancelar esta reservacion?')) return;
+    this.http.post<any>('/api/cancelaciones', {
+      reservacionId: this.reservacionSeleccionada!.id
+    }).subscribe({
+      next: (data) => {
+        this.mensajeCancelacion = `Cancelacion procesada. Reembolso: Q.${data.montoReembolso}`;
+        this.cargarReservacionesDelDia();
+        this.reservacionSeleccionada = null;
+        this.cdr.detectChanges();
+      },
+      error: (e) => {
+        this.errorCancelacion = e.error?.error || 'Error al cancelar';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  formatearFecha(fecha: string): string {
+    if (!fecha) return '';
+    const [y, m, d] = fecha.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  getMetodoNombre(metodo: number): string {
+    if (metodo === 1) return 'Efectivo';
+    if (metodo === 2) return 'Tarjeta';
+    return 'Transferencia';
+  }
+
+  logout(): void {
+    this.authService.logout().subscribe();
+    this.authService.cerrarSesion();
+    this.router.navigate(['/login']);
+  }
+}
