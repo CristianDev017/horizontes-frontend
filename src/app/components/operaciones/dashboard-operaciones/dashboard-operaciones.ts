@@ -102,7 +102,10 @@ export class DashboardOperacionesComponent implements OnInit {
         this.cargarDestinos();
         this.cdr.detectChanges();
       },
-      error: (e) => this.errorDestino = e.error?.error || 'Error al guardar destino'
+      error: (e: any) => {
+        this.errorDestino = e.error?.error || 'Error al guardar destino';
+        this.cdr.detectChanges();
+}
     });
   }
 
@@ -145,7 +148,10 @@ export class DashboardOperacionesComponent implements OnInit {
         this.cargarProveedores();
         this.cdr.detectChanges();
       },
-      error: (e) => this.errorProveedor = e.error?.error || 'Error al guardar proveedor'
+      error: (e: any) => {
+        this.errorProveedor = e.error?.error || 'Error al guardar proveedor';
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -193,7 +199,10 @@ export class DashboardOperacionesComponent implements OnInit {
         this.cargarPaquetes();
         this.cdr.detectChanges();
       },
-      error: (e) => this.errorPaquete = e.error?.error || 'Error al guardar paquete'
+      error: (e: any) => {
+        this.errorPaquete = e.error?.error || 'Error al guardar paquete';
+        this.cdr.detectChanges();
+}
     });
   }
 

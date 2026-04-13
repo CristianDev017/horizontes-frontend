@@ -264,6 +264,10 @@ buscarCliente(): void {
     if (metodo === 2) return 'Tarjeta';
     return 'Transferencia';
   }
+  
+  descargarFactura(): void {
+  window.open(`/api/factura/${this.reservacionSeleccionada!.id}`, '_blank');
+}
 
   logout(): void {
     this.authService.logout().subscribe();

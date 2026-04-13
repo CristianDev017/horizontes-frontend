@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../services/auth';
 import { UsuarioService } from '../../../services/usuario';
 import { Usuario } from '../../../models/usuario.model';
@@ -30,10 +31,18 @@ export class DashboardAdminComponent implements OnInit {
   resultadoCarga: any = null;
   cargando: boolean = false;
 
+  // Reportes
+  fechaInicio: string = '';
+  fechaFin: string = '';
+  reporteSeleccionado: string = 'ventas';
+  datosReporte: any = null;
+
   constructor(
     private authService: AuthService,
     private usuarioService: UsuarioService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -65,7 +74,7 @@ export class DashboardAdminComponent implements OnInit {
         this.mostrarFormUsuario = false;
         this.cargarUsuarios();
       },
-      error: (e) => this.errorUsuario = e.error?.error || 'Error al crear usuario'
+      error: (e: any) => this.errorUsuario = e.error?.error || 'Error al crear usuario'
     });
   }
 
@@ -103,50 +112,52 @@ export class DashboardAdminComponent implements OnInit {
     .then(data => {
       this.resultadoCarga = data;
       this.cargando = false;
+      this.cdr.detectChanges();
     })
     .catch(() => this.cargando = false);
   }
-      // Reportes
-    fechaInicio: string = '';
-    fechaFin: string = '';
-    reporteSeleccionado: string = 'ventas';
-    datosReporte: any = null;
 
-    generarReporte(): void {
-      const params = this.fechaInicio && this.fechaFin
-        ? `?inicio=${this.fechaInicio}&fin=${this.fechaFin}`
-        : '';
-      fetch(`/api/reportes/${this.reporteSeleccionado}${params}`, {
-        credentials: 'include'
-      })
-      .then(r => r.json())
-      .then(data => this.datosReporte = data);
-    }
+  // ---- REPORTES ----
+  generarReporte(): void {
+    const params = this.fechaInicio && this.fechaFin
+      ? `?inicio=${this.fechaInicio}&fin=${this.fechaFin}`
+      : '';
+    this.http.get<any>(`/api/reportes/${this.reporteSeleccionado}${params}`)
+      .subscribe({
+        next: (data) => {
+          this.datosReporte = data;
+          this.cdr.detectChanges();
+        },
+        error: (e: any) => {
+          console.error('Error al generar reporte:', e);
+        }
+      });
+  }
 
-    esArray(data: any): boolean {
-      return Array.isArray(data);
-    }
+  esArray(data: any): boolean {
+    return Array.isArray(data);
+  }
 
-    getColumnas(obj: any): string[] {
-      return Object.keys(obj);
-    }
+  getColumnas(obj: any): string[] {
+    return Object.keys(obj);
+  }
 
-    exportarCSV(): void {
-      if (!this.datosReporte) return;
-      const datos = this.esArray(this.datosReporte) ? this.datosReporte : [this.datosReporte];
-      if (datos.length === 0) return;
-      const cols = this.getColumnas(datos[0]);
-      const csv = [
-        cols.join(','),
-        ...datos.map((fila: any) => cols.map((c: string) => fila[c]).join(','))
-      ].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `reporte-${this.reporteSeleccionado}.csv`;
-      a.click();
-    }
+  exportarCSV(): void {
+    if (!this.datosReporte) return;
+    const datos = this.esArray(this.datosReporte) ? this.datosReporte : [this.datosReporte];
+    if (datos.length === 0) return;
+    const cols = this.getColumnas(datos[0]);
+    const csv = [
+      cols.join(','),
+      ...datos.map((fila: any) => cols.map((c: string) => fila[c]).join(','))
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-${this.reporteSeleccionado}.csv`;
+    a.click();
+  }
 
   logout(): void {
     this.authService.logout().subscribe();
