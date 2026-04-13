@@ -165,10 +165,15 @@ cargarArchivo(): void {
   this.http.post('/api/carga', formData).subscribe({
     next: (data) => {
       this.resultadoCarga = data;
+      this.archivoCarga = null;
+      this.cargarUsuarios();
       this.cargando = false;
       this.cdr.detectChanges();
     },
-    error: () => this.cargando = false
+    error: () => {
+      this.cargando = false;
+      this.cdr.detectChanges();
+    }
   });
 }
 

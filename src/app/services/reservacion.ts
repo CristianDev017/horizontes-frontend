@@ -35,7 +35,6 @@ export class ReservacionService {
   }
 
   consultarOcupacion(paqueteId: number, fecha: string): Observable<{ocupados: number}> {
-
   return this.http.get<{ocupados: number}>(`/api/reservaciones/ocupacion/${paqueteId}/${fecha}`);
 }
 }

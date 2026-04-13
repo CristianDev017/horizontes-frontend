@@ -57,6 +57,7 @@ export class DashboardAtencionComponent implements OnInit {
   // Cancelacion
   mensajeCancelacion: string = '';
   errorCancelacion: string = '';
+  cancelacionInfo: { fecha: string; montoReembolso: number; perdidaAgencia: number } | null = null;
 
   constructor(
     private authService: AuthService,
@@ -189,12 +190,27 @@ export class DashboardAtencionComponent implements OnInit {
   }
 
   seleccionarReservacion(r: Reservacion): void {
-    this.reservacionSeleccionada = r;
-    this.cargarPagos(r.id);
+    this.reservacionSeleccionada = null;
     this.mensajePago = '';
     this.errorPago = '';
     this.mensajeCancelacion = '';
     this.errorCancelacion = '';
+    this.cancelacionInfo = null;
+    this.mostrarFormPago = false;
+    this.nuevoPago = { reservacionId: r.id, monto: 0, metodo: 1, fecha: '' };
+
+    this.reservacionService.buscarPorId(r.id).subscribe({
+      next: (detalle) => {
+        this.reservacionSeleccionada = detalle;
+        this.cargarPagos(detalle.id);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.reservacionSeleccionada = r;
+        this.cargarPagos(r.id);
+        this.cdr.detectChanges();
+      }
+    });
   }
 
 agregarPasajero(): void {
@@ -292,27 +308,56 @@ estaLleno(): boolean {
 
   isPagoCompleto(): boolean {
     if (!this.reservacionSeleccionada) return false;
-    const totalPagos = this.pagosReservacion.reduce((sum, pago) => sum + pago.monto, 0);
-    return totalPagos >= this.reservacionSeleccionada.costoTotal;
+    return this.getSaldoRestante() === 0;
+  }
+
+  getEstadoReal(): string {
+    if (!this.reservacionSeleccionada) return '';
+    if (this.reservacionSeleccionada.estado === 'CONFIRMADA' && !this.isPagoCompleto()) {
+      return 'PENDIENTE';
+    }
+    return this.reservacionSeleccionada.estado;
   }
 
   registrarPago(): void {
     this.errorPago = '';
-    if (!this.nuevoPago.monto || this.nuevoPago.monto <= 0) {
-      this.errorPago = 'El monto debe ser mayor a 0'; return;
+    this.mensajePago = '';
+    if (!this.reservacionSeleccionada) {
+      this.errorPago = 'Selecciona una reservación primero';
+      return;
     }
+
+    const monto = Number(this.nuevoPago.monto);
+    const metodo = Number(this.nuevoPago.metodo);
+    const saldoRestante = this.getSaldoRestante();
+
+    if (isNaN(monto) || monto <= 0) {
+      this.errorPago = 'El monto debe ser mayor a 0';
+      return;
+    }
+
+    if (monto > saldoRestante) {
+      this.errorPago = `El monto no puede ser mayor al saldo restante (Q.${saldoRestante.toFixed(2)})`;
+      return;
+    }
+
     const pago = {
-      reservacionId: this.reservacionSeleccionada!.id,
-      monto: this.nuevoPago.monto,
-      metodo: this.nuevoPago.metodo,
+      reservacionId: this.reservacionSeleccionada.id,
+      monto,
+      metodo,
       fecha: this.formatearFecha(new Date().toISOString().split('T')[0])
     };
+
     this.pagoService.registrar(pago).subscribe({
       next: (resp) => {
         this.mensajePago = resp.mensaje;
         this.mostrarFormPago = false;
-        this.nuevoPago = { monto: 0, metodo: 1 };
+        this.errorPago = '';
+        this.nuevoPago = { reservacionId: this.reservacionSeleccionada!.id, monto: 0, metodo: 1, fecha: '' };
         this.cargarPagos(this.reservacionSeleccionada!.id);
+        if (this.reservacionSeleccionada && this.isPagoCompleto()) {
+          this.reservacionSeleccionada.estado = 'CONFIRMADA';
+        }
         this.cargarReservacionesDelDia();
         this.cdr.detectChanges();
       },
@@ -323,23 +368,123 @@ estaLleno(): boolean {
   // ---- CANCELACION ----
   procesarCancelacion(): void {
     this.errorCancelacion = '';
-    if (!confirm('¿Seguro que deseas cancelar esta reservacion?')) return;
-    this.http.post<any>('/api/cancelaciones', { reservacionId: this.reservacionSeleccionada!.id }).subscribe({
+    if (!this.reservacionSeleccionada) {
+      this.errorCancelacion = 'Selecciona una reservación antes de cancelar';
+      return;
+    }
+
+    if (this.reservacionSeleccionada.estado !== 'CONFIRMADA' || !this.isPagoCompleto()) {
+      this.errorCancelacion = 'Solo se puede cancelar una reservación CONFIRMADA con pago completo';
+      return;
+    }
+
+    const diasAntes = this.getDiasAntesViaje();
+    if (diasAntes <= 0) {
+      this.errorCancelacion = 'No se puede cancelar el mismo día del viaje o después';
+      return;
+    }
+
+    if (!confirm('¿Seguro que deseas cancelar esta reservación?')) return;
+
+    const totalPagado = this.getTotalPagado();
+    const porcentajeReembolso = this.getPorcentajeReembolso();
+    const montoReembolso = Number((totalPagado * porcentajeReembolso).toFixed(2));
+    const perdidaAgencia = Number((totalPagado - montoReembolso).toFixed(2));
+
+    const payload = {
+      reservacionId: this.reservacionSeleccionada.id,
+      fecha: this.formatearFecha(new Date().toISOString().split('T')[0]),
+      montoReembolso,
+      perdidaAgencia
+    };
+
+    this.http.post<any>('/api/cancelaciones', payload).subscribe({
       next: (data) => {
         if (data.error) {
           this.errorCancelacion = data.error;
         } else {
-          this.mensajeCancelacion = `Cancelacion procesada. Reembolso: Q.${data.montoReembolso}`;
+          this.reservacionSeleccionada!.estado = 'CANCELADA';
+          this.cancelacionInfo = {
+            fecha: payload.fecha,
+            montoReembolso,
+            perdidaAgencia
+          };
+          this.mensajeCancelacion = `Cancelación procesada. Reembolso: Q.${montoReembolso} / Pérdida agencia: Q.${perdidaAgencia}`;
           this.cargarReservacionesDelDia();
-          this.reservacionSeleccionada = null;
+          this.cdr.detectChanges();
         }
-        this.cdr.detectChanges();
       },
       error: (e) => {
-        this.errorCancelacion = e.error?.error || 'No se puede cancelar esta reservacion';
+        this.errorCancelacion = e.error?.error || 'No se puede cancelar esta reservación';
         this.cdr.detectChanges();
       }
     });
+  }
+
+  getTotalPagado(): number {
+    return this.pagosReservacion.reduce((sum, pago) => sum + pago.monto, 0);
+  }
+
+  getPasajeroCount(): number {
+    return this.reservacionSeleccionada?.pasajeros?.length ?? 0;
+  }
+
+  getPasajeros(): { dpi: string; nombre?: string }[] {
+    if (!this.reservacionSeleccionada?.pasajeros) return [];
+    return this.reservacionSeleccionada.pasajeros.map((p: any) => {
+      if (typeof p === 'string') {
+        return { dpi: p, nombre: '' };
+      }
+      return { dpi: p.dpi ?? '', nombre: p.nombre ?? '' };
+    });
+  }
+
+  formatCurrency(value: number): string {
+    return `Q.${value.toFixed(2)}`;
+  }
+
+  getDiasAntesViaje(): number {
+    if (!this.reservacionSeleccionada) return 0;
+    const fechaViaje = this.parseFecha(this.reservacionSeleccionada.fechaViaje);
+    if (!fechaViaje) return 0;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    fechaViaje.setHours(0, 0, 0, 0);
+    const diffMs = fechaViaje.getTime() - hoy.getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  getPorcentajeReembolso(): number {
+    const dias = this.getDiasAntesViaje();
+    if (dias >= 15) return 1;
+    if (dias >= 7) return 0.7;
+    if (dias >= 1) return 0.4;
+    return 0;
+  }
+
+  getSaldoRestante(): number {
+    if (!this.reservacionSeleccionada) return 0;
+    const totalPagos = this.getTotalPagado();
+    return Math.max(0, this.reservacionSeleccionada.costoTotal - totalPagos);
+  }
+
+  private parseFecha(fecha: string): Date | null {
+    if (!fecha) return null;
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+    if (iso) {
+      return new Date(`${fecha}T00:00:00`);
+    }
+    const partes = fecha.split('/');
+    if (partes.length === 3) {
+      const dia = Number(partes[0]);
+      const mes = Number(partes[1]) - 1;
+      const anio = Number(partes[2]);
+      if (!Number.isNaN(dia) && !Number.isNaN(mes) && !Number.isNaN(anio)) {
+        return new Date(anio, mes, dia);
+      }
+    }
+    const parsed = new Date(fecha);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   getPaqueteSeleccionado(): Paquete | undefined {
