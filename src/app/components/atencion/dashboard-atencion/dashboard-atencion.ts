@@ -13,6 +13,7 @@ import { Paquete } from '../../../models/paquete.model';
 import { Reservacion } from '../../../models/reservacion.model';
 import { Pago } from '../../../models/pago.model';
 
+
 @Component({
   selector: 'app-dashboard-atencion',
   standalone: true,
@@ -29,6 +30,8 @@ export class DashboardAtencionComponent implements OnInit {
   clienteBuscado: Cliente | null = null;
   dpiBusqueda: string = '';
   mostrarFormCliente: boolean = false;
+  isEditarCliente: boolean = false;
+  clienteOriginalDpi: string = '';
   nuevoCliente: Cliente = { dpi: '', nombre: '', fechaNac: '', telefono: '', email: '', nacionalidad: '' };
   mensajeCliente: string = '';
   errorCliente: string = '';
@@ -42,6 +45,7 @@ export class DashboardAtencionComponent implements OnInit {
   dpiBuscandoPasajero: string = '';
   mensajeReservacion: string = '';
   errorReservacion: string = '';
+  ocupadosActuales: number = 0;
 
   // Pagos
   pagosReservacion: Pago[] = [];
@@ -80,26 +84,29 @@ export class DashboardAtencionComponent implements OnInit {
   }
 
   // ---- CLIENTES ----
-buscarCliente(): void {
-  this.errorCliente = '';
-  this.mensajeCliente = '';
-  this.clienteBuscado = null;
-  this.historialCliente = [];
-  if (!this.dpiBusqueda) { this.errorCliente = 'Ingresa un DPI'; return; }
-  this.clienteService.buscarPorDpi(this.dpiBusqueda).subscribe({
-    next: (c) => {
-      this.clienteBuscado = c;
-      this.cargarHistorial(c.dpi);
-      this.cdr.detectChanges();  
-    },
-    error: () => {
-      this.clienteBuscado = null;
-      this.mostrarFormCliente = true;
-      this.nuevoCliente = { dpi: this.dpiBusqueda, nombre: '', fechaNac: '', telefono: '', email: '', nacionalidad: '' };
-      this.cdr.detectChanges(); 
-    }
-  });
-}
+  buscarCliente(): void {
+    this.errorCliente = '';
+    this.mensajeCliente = '';
+    this.clienteBuscado = null;
+    this.historialCliente = [];
+    this.isEditarCliente = false;
+    if (!this.dpiBusqueda) { this.errorCliente = 'Ingresa un DPI'; return; }
+    this.clienteService.buscarPorDpi(this.dpiBusqueda).subscribe({
+      next: (c) => {
+        this.clienteBuscado = c;
+        this.clienteOriginalDpi = c.dpi;
+        this.cargarHistorial(c.dpi);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.clienteBuscado = null;
+        this.mostrarFormCliente = true;
+        this.isEditarCliente = false;
+        this.nuevoCliente = { dpi: this.dpiBusqueda, nombre: '', fechaNac: '', telefono: '', email: '', nacionalidad: '' };
+        this.cdr.detectChanges();
+      }
+    });
+  }
 
   cargarHistorial(dpi: string): void {
     this.reservacionService.historialCliente(dpi).subscribe({
@@ -108,14 +115,45 @@ buscarCliente(): void {
     });
   }
 
+  editarCliente(): void {
+    if (!this.clienteBuscado) return;
+    this.mostrarFormCliente = true;
+    this.isEditarCliente = true;
+    this.clienteOriginalDpi = this.clienteBuscado.dpi;
+    this.nuevoCliente = { ...this.clienteBuscado };
+    this.errorCliente = '';
+    this.mensajeCliente = '';
+  }
+
   registrarCliente(): void {
     this.errorCliente = '';
     if (!this.nuevoCliente.dpi || !this.nuevoCliente.nombre || !this.nuevoCliente.fechaNac) {
       this.errorCliente = 'Completa los campos requeridos'; return;
     }
+
+    if (this.isEditarCliente) {
+      this.clienteService.actualizar(this.clienteOriginalDpi, this.nuevoCliente).subscribe({
+        next: (c) => {
+          this.clienteBuscado = c;
+          this.mostrarFormCliente = false;
+          this.isEditarCliente = false;
+          this.mensajeCliente = 'Cliente actualizado correctamente';
+          this.cdr.detectChanges();
+        },
+        error: (e) => {
+          this.errorCliente = e.error?.error || 'Error al actualizar cliente';
+          this.mostrarFormCliente = true;
+          this.cdr.detectChanges();
+        }
+      });
+      return;
+    }
+
     this.clienteService.buscarPorDpi(this.nuevoCliente.dpi).subscribe({
       next: () => {
         this.errorCliente = 'Ya existe un cliente con ese DPI';
+        this.mostrarFormCliente = true;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.clienteService.crear(this.nuevoCliente).subscribe({
@@ -125,7 +163,11 @@ buscarCliente(): void {
             this.mensajeCliente = 'Cliente registrado correctamente';
             this.cdr.detectChanges();
           },
-          error: (e) => this.errorCliente = e.error?.error || 'Error al registrar cliente'
+          error: (e) => {
+            this.errorCliente = e.error?.error || 'Error al registrar cliente';
+            this.mostrarFormCliente = true;
+            this.cdr.detectChanges();
+          }
         });
       }
     });
@@ -155,20 +197,31 @@ buscarCliente(): void {
     this.errorCancelacion = '';
   }
 
-  agregarPasajero(): void {
-    if (!this.dpiBuscandoPasajero) return;
-    if (this.nuevaReservacion.pasajeros.includes(this.dpiBuscandoPasajero)) {
-      this.errorReservacion = 'Este pasajero ya está agregado'; return;
-    }
-    this.clienteService.buscarPorDpi(this.dpiBuscandoPasajero).subscribe({
-      next: () => {
-        this.nuevaReservacion.pasajeros.push(this.dpiBuscandoPasajero);
-        this.dpiBuscandoPasajero = '';
-        this.errorReservacion = '';
-      },
-      error: () => this.errorReservacion = 'Cliente no encontrado con ese DPI'
-    });
+agregarPasajero(): void {
+  if (!this.dpiBuscandoPasajero) return;
+
+  if (this.nuevaReservacion.pasajeros.includes(this.dpiBuscandoPasajero)) {
+    this.errorReservacion = 'Este pasajero ya está agregado'; return;
   }
+
+  const paquete = this.getPaqueteSeleccionado();
+  if (!paquete) { this.errorReservacion = 'Selecciona un paquete primero'; return; }
+  if (!this.nuevaReservacion.fechaViaje) { this.errorReservacion = 'Selecciona una fecha de viaje primero'; return; }
+
+  if (this.nuevaReservacion.pasajeros.length + 1 > paquete.capacidad) {
+    this.errorReservacion = `Este paquete ya está lleno (capacidad: ${paquete.capacidad})`; return;
+  }
+
+  this.clienteService.buscarPorDpi(this.dpiBuscandoPasajero).subscribe({
+    next: () => {
+      this.nuevaReservacion.pasajeros.push(this.dpiBuscandoPasajero);
+      this.dpiBuscandoPasajero = '';
+      this.errorReservacion = '';
+      this.cdr.detectChanges();
+    },
+    error: () => this.errorReservacion = 'Cliente no encontrado con ese DPI'
+  });
+}
 
   quitarPasajero(dpi: string): void {
     this.nuevaReservacion.pasajeros = this.nuevaReservacion.pasajeros.filter((d: string) => d !== dpi);
@@ -176,13 +229,20 @@ buscarCliente(): void {
 
   crearReservacion(): void {
     this.errorReservacion = '';
+    this.mensajeReservacion = '';
+
     if (!this.nuevaReservacion.paqueteId || !this.nuevaReservacion.fechaViaje) {
-      this.errorReservacion = 'Selecciona paquete y fecha de viaje'; return;
+      this.errorReservacion = 'Selecciona paquete y fecha de viaje';
+      return;
     }
+
     if (this.nuevaReservacion.pasajeros.length === 0) {
-      this.errorReservacion = 'Agrega al menos un pasajero'; return;
+      this.errorReservacion = 'Agrega al menos un pasajero';
+      return;
     }
+
     const paquete = this.paquetes.find(p => p.id == this.nuevaReservacion.paqueteId);
+
     const data = {
       paqueteId: Number(this.nuevaReservacion.paqueteId),
       agenteId: this.usuario.id,
@@ -190,16 +250,37 @@ buscarCliente(): void {
       costoTotal: paquete ? paquete.precioVenta * this.nuevaReservacion.pasajeros.length : 0,
       pasajeros: this.nuevaReservacion.pasajeros
     };
+
     this.reservacionService.crear(data).subscribe({
       next: (r) => {
         this.mensajeReservacion = `Reservacion ${r.numero} creada correctamente`;
-        this.nuevaReservacion = { paqueteId: 0, fechaViaje: '', pasajeros: [] };
-        this.cargarReservacionesDelDia();
         this.cdr.detectChanges();
+
+        this.cargarReservacionesDelDia();
+
+        setTimeout(() => {
+          this.mensajeReservacion = '';
+          this.nuevaReservacion = { paqueteId: 0, fechaViaje: '', pasajeros: [] };
+          this.cdr.detectChanges();
+        }, 3000);
       },
-      error: (e) => this.errorReservacion = e.error?.error || 'Error al crear reservacion'
+      error: (e) => {
+        this.errorReservacion = e.error?.error || 'Error al crear reservacion';
+      }
     });
   }
+
+  getPorcentajeOcupacionConPasajeros(): number {
+  const paq = this.getPaqueteSeleccionado();
+  if (!paq || !paq.capacidad) return 0;
+  return Math.round((this.nuevaReservacion.pasajeros.length * 100) / paq.capacidad);
+}
+
+estaLleno(): boolean {
+  const paq = this.getPaqueteSeleccionado();
+  if (!paq) return false;
+  return this.nuevaReservacion.pasajeros.length >= paq.capacidad;
+}
 
   // ---- PAGOS ----
   cargarPagos(reservacionId: number): void {
@@ -207,6 +288,12 @@ buscarCliente(): void {
       next: (data) => this.pagosReservacion = data,
       error: () => {}
     });
+  }
+
+  isPagoCompleto(): boolean {
+    if (!this.reservacionSeleccionada) return false;
+    const totalPagos = this.pagosReservacion.reduce((sum, pago) => sum + pago.monto, 0);
+    return totalPagos >= this.reservacionSeleccionada.costoTotal;
   }
 
   registrarPago(): void {
@@ -237,21 +324,29 @@ buscarCliente(): void {
   procesarCancelacion(): void {
     this.errorCancelacion = '';
     if (!confirm('¿Seguro que deseas cancelar esta reservacion?')) return;
-    this.http.post<any>('/api/cancelaciones', {
-      reservacionId: this.reservacionSeleccionada!.id
-    }).subscribe({
+    this.http.post<any>('/api/cancelaciones', { reservacionId: this.reservacionSeleccionada!.id }).subscribe({
       next: (data) => {
-        this.mensajeCancelacion = `Cancelacion procesada. Reembolso: Q.${data.montoReembolso}`;
-        this.cargarReservacionesDelDia();
-        this.reservacionSeleccionada = null;
+        if (data.error) {
+          this.errorCancelacion = data.error;
+        } else {
+          this.mensajeCancelacion = `Cancelacion procesada. Reembolso: Q.${data.montoReembolso}`;
+          this.cargarReservacionesDelDia();
+          this.reservacionSeleccionada = null;
+        }
         this.cdr.detectChanges();
       },
       error: (e) => {
-        this.errorCancelacion = e.error?.error || 'Error al cancelar';
+        this.errorCancelacion = e.error?.error || 'No se puede cancelar esta reservacion';
         this.cdr.detectChanges();
       }
     });
   }
+
+  getPaqueteSeleccionado(): Paquete | undefined {
+    return this.paquetes.find(p => p.id == this.nuevaReservacion.paqueteId);
+  }
+
+
 
   formatearFecha(fecha: string): string {
     if (!fecha) return '';
@@ -264,10 +359,10 @@ buscarCliente(): void {
     if (metodo === 2) return 'Tarjeta';
     return 'Transferencia';
   }
-  
+
   descargarFactura(): void {
-  window.open(`/api/factura/${this.reservacionSeleccionada!.id}`, '_blank');
-}
+    window.open(`/api/factura/${this.reservacionSeleccionada!.id}`, '_blank');
+  }
 
   logout(): void {
     this.authService.logout().subscribe();

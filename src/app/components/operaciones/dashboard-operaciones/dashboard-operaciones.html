@@ -200,70 +200,79 @@
       </div>
     </div>
 
-    <!-- PAQUETES -->
-    <div *ngIf="seccionActiva === 'paquetes'">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Paquetes Turísticos</h2>
-        <button (click)="mostrarFormPaquete = !mostrarFormPaquete; editandoPaquete = false; paqueteSeleccionado = null"
-          class="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-800">
-          + Nuevo Paquete
-        </button>
-      </div>
+<!-- PAQUETES -->
+<div *ngIf="seccionActiva === 'paquetes'">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Paquetes Turísticos</h2>
+    <button (click)="mostrarFormPaquete = !mostrarFormPaquete; editandoPaquete = false; paqueteSeleccionado = null"
+      class="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-800">
+      + Nuevo Paquete
+    </button>
+  </div>
 
-      <div *ngIf="mensajePaquete" class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{{ mensajePaquete }}</div>
-      <div *ngIf="errorPaquete" class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">{{ errorPaquete }}</div>
+  <div *ngIf="mensajePaquete" class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{{ mensajePaquete }}</div>
+  <div *ngIf="errorPaquete" class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">{{ errorPaquete }}</div>
 
-      <!-- Formulario paquete -->
-      <div *ngIf="mostrarFormPaquete" class="bg-white rounded-xl shadow p-6 mb-6">
-        <h3 class="text-lg font-semibold mb-4">{{ editandoPaquete ? 'Editar' : 'Nuevo' }} Paquete</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-            <input type="text" [(ngModel)]="nuevoPaquete.nombre" autocomplete="off"
-              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
-            <select [(ngModel)]="nuevoPaquete.destinoId"
-              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <option [value]="0">Selecciona un destino</option>
-              <option *ngFor="let d of destinos" [value]="d.id">{{ d.nombre }}</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Duración (días)</label>
-            <input type="number" [(ngModel)]="nuevoPaquete.duracionDias" min="1"
-              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Precio de venta (Q)</label>
-            <input type="number" [(ngModel)]="nuevoPaquete.precioVenta" min="0"
-              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Capacidad máxima</label>
-            <input type="number" [(ngModel)]="nuevoPaquete.capacidad" min="1"
-              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
-          </div>
-          <div class="col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-            <textarea [(ngModel)]="nuevoPaquete.descripcion" rows="3"
-              class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
-          </div>
-        </div>
-      <div class="mt-4 flex gap-3">
-        <button (click)="guardarPaquete()"
-          class="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800">
-          {{ editandoPaquete ? 'Actualizar' : 'Guardar' }}
-        </button>
-        <button (click)="mostrarFormPaquete = false"
-          class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300">
-          Cancelar
-        </button>
+  <!-- Alerta capacidad -->
+  <div *ngIf="ocupacionPaquetes.length > 0" class="bg-orange-100 border border-orange-400 text-orange-800 px-4 py-3 rounded-lg mb-4">
+    <p class="font-semibold mb-2">Paquetes con alta ocupación (más del 80%):</p>
+    <ul class="list-disc ml-5 text-sm">
+      <li *ngFor="let p of ocupacionPaquetes">
+        {{ p.nombre }} — {{ p.porcentajeOcupacion }}% ocupado ({{ p.reservacionesActivas }}/{{ p.capacidad }} lugares)
+      </li>
+    </ul>
+  </div>
+
+  <!-- Formulario paquete -->
+  <div *ngIf="mostrarFormPaquete" class="bg-white rounded-xl shadow p-6 mb-6">
+    <h3 class="text-lg font-semibold mb-4">{{ editandoPaquete ? 'Editar' : 'Nuevo' }} Paquete</h3>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+        <input type="text" [(ngModel)]="nuevoPaquete.nombre" autocomplete="off"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
       </div>
-      <div *ngIf="errorPaquete" class="bg-red-100 text-red-700 px-3 py-2 rounded mt-3 text-sm">{{ errorPaquete }}</div>
-           
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+        <select [(ngModel)]="nuevoPaquete.destinoId"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <option [value]="0">Selecciona un destino</option>
+          <option *ngFor="let d of destinos" [value]="d.id">{{ d.nombre }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Duración (días)</label>
+        <input type="number" [(ngModel)]="nuevoPaquete.duracionDias" min="1"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Precio de venta (Q)</label>
+        <input type="number" [(ngModel)]="nuevoPaquete.precioVenta" min="0"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Capacidad máxima</label>
+        <input type="number" [(ngModel)]="nuevoPaquete.capacidad" min="1"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+        <textarea [(ngModel)]="nuevoPaquete.descripcion" rows="3"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+      </div>
     </div>
+    <div class="mt-4 flex gap-3">
+      <button (click)="guardarPaquete()"
+        class="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800">
+        {{ editandoPaquete ? 'Actualizar' : 'Guardar' }}
+      </button>
+      <button (click)="mostrarFormPaquete = false"
+        class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300">
+        Cancelar
+      </button>
+    </div>
+    <div *ngIf="errorPaquete" class="bg-red-100 text-red-700 px-3 py-2 rounded mt-3 text-sm">{{ errorPaquete }}</div>
+  </div>
 
       <!-- Lista + Detalle -->
       <div class="grid grid-cols-2 gap-6">

@@ -33,4 +33,9 @@ export class ReservacionService {
   cambiarEstado(id: number, estado: string): Observable<any> {
     return this.http.put(`${this.url}/${id}`, { estado });
   }
+
+  consultarOcupacion(paqueteId: number, fecha: string): Observable<{ocupados: number}> {
+
+  return this.http.get<{ocupados: number}>(`/api/reservaciones/ocupacion/${paqueteId}/${fecha}`);
+}
 }

@@ -5,6 +5,7 @@ export interface ServicioPaquete {
   proveedorNombre: string;
   descripcion: string;
   costo: number;
+  porcentajeOcupacion?: number;
 }
 
 export interface Paquete {
@@ -18,4 +19,5 @@ export interface Paquete {
   capacidad: number;
   activo: boolean;
   servicios?: ServicioPaquete[];
+  porcentajeOcupacion?: number;
 }

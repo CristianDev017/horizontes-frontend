@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../services/auth';
 import { DestinoService } from '../../../services/destino';
 import { ProveedorService } from '../../../services/proveedor';
@@ -52,19 +53,24 @@ export class DashboardOperacionesComponent implements OnInit {
   mensajeServicio: string = '';
   errorServicio: string = '';
 
+  // Ocupacion
+  ocupacionPaquetes: any[] = [];
+
   constructor(
     private authService: AuthService,
     private destinoService: DestinoService,
     private proveedorService: ProveedorService,
     private paqueteService: PaqueteService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
     this.cargarDestinos();
     this.cargarProveedores();
     this.cargarPaquetes();
+    this.cargarOcupacion();
   }
 
   cambiarSeccion(seccion: string): void {
@@ -105,7 +111,7 @@ export class DashboardOperacionesComponent implements OnInit {
       error: (e: any) => {
         this.errorDestino = e.error?.error || 'Error al guardar destino';
         this.cdr.detectChanges();
-}
+      }
     });
   }
 
@@ -119,7 +125,7 @@ export class DashboardOperacionesComponent implements OnInit {
     if (!confirm('¿Eliminar este destino?')) return;
     this.destinoService.eliminar(id).subscribe({
       next: () => { this.mensajeDestino = 'Destino eliminado'; this.cargarDestinos(); },
-      error: (e) => this.errorDestino = e.error?.error || 'Error al eliminar destino'
+      error: (e: any) => this.errorDestino = e.error?.error || 'Error al eliminar destino'
     });
   }
 
@@ -165,7 +171,7 @@ export class DashboardOperacionesComponent implements OnInit {
     if (!confirm('¿Eliminar este proveedor?')) return;
     this.proveedorService.eliminar(id).subscribe({
       next: () => { this.mensajeProveedor = 'Proveedor eliminado'; this.cargarProveedores(); },
-      error: (e) => this.errorProveedor = e.error?.error || 'Error al eliminar proveedor'
+      error: (e: any) => this.errorProveedor = e.error?.error || 'Error al eliminar proveedor'
     });
   }
 
@@ -178,6 +184,16 @@ export class DashboardOperacionesComponent implements OnInit {
   cargarPaquetes(): void {
     this.paqueteService.listar().subscribe({
       next: (data) => this.paquetes = data,
+      error: () => {}
+    });
+  }
+
+  cargarOcupacion(): void {
+    this.http.get<any[]>('/api/paquetes/ocupacion').subscribe({
+      next: (data) => {
+        this.ocupacionPaquetes = data.filter(p => p.porcentajeOcupacion >= 80);
+        this.cdr.detectChanges();
+      },
       error: () => {}
     });
   }
@@ -197,12 +213,13 @@ export class DashboardOperacionesComponent implements OnInit {
         this.mostrarFormPaquete = false;
         this.editandoPaquete = false;
         this.cargarPaquetes();
+        this.cargarOcupacion();
         this.cdr.detectChanges();
       },
       error: (e: any) => {
         this.errorPaquete = e.error?.error || 'Error al guardar paquete';
         this.cdr.detectChanges();
-}
+      }
     });
   }
 
@@ -216,7 +233,7 @@ export class DashboardOperacionesComponent implements OnInit {
     if (!confirm('¿Desactivar este paquete?')) return;
     this.paqueteService.desactivar(id).subscribe({
       next: () => { this.mensajePaquete = 'Paquete desactivado'; this.cargarPaquetes(); },
-      error: (e) => this.errorPaquete = e.error?.error || 'Error al desactivar paquete'
+      error: (e: any) => this.errorPaquete = e.error?.error || 'Error al desactivar paquete'
     });
   }
 
@@ -243,7 +260,7 @@ export class DashboardOperacionesComponent implements OnInit {
         this.verDetallePaquete(this.paqueteSeleccionado!);
         this.cdr.detectChanges();
       },
-      error: (e) => this.errorServicio = e.error?.error || 'Error al agregar servicio'
+      error: (e: any) => this.errorServicio = e.error?.error || 'Error al agregar servicio'
     });
   }
 
